@@ -2,101 +2,187 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>道歉中...請稍候</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iLearn 系統忙碌中</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            /* 讓網頁夠長，才能觸發捲軸滑動 */
-            height: 3000px; 
-            font-family: sans-serif;
+            height: 4000px; /* 捲軸長度維持，供使用者滑動看磕頭動作 */
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
             display: flex;
+            background-color: #fafafa;
         }
 
-        /* 左側：固定顯示圖片的區域 */
+        /* --- 左側：固定顯示道歉圖片 --- */
         .left-container {
             width: 40%;
             height: 100vh;
-            position: fixed; /* 固定在螢幕左側 */
+            position: fixed; 
             top: 0;
             left: 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #f0f0f0;
+            background-color: #e9e9e9;
+            border-right: 1px solid #ddd;
         }
 
         .left-container img {
-            max-width: 80%;
+            max-width: 85%;
             height: auto;
+            filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1));
         }
 
-        /* 右側：內容區，讓它有留白來產生捲軸 */
+        /* --- 右側：內容資訊區 --- */
         .right-content {
-            margin-left: 40%; /* 留出左側固定區的空間 */
+            margin-left: 40%; 
             width: 60%;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding-top: 20vh;
+            padding-top: 15vh;
         }
 
         .info-box {
-            width: 400px;
-            padding: 30px;
-            border: 2px solid #000;
+            width: 450px;
+            padding: 40px;
+            border: 2px solid #333;
             background: white;
             text-align: center;
-            position: sticky; /* 讓框框在滑動時也能稍微停留在視線內 */
-            top: 100px;
+            position: sticky; 
+            top: 80px;
+            box-shadow: 10px 10px 0px #333;
         }
 
-        .footer-info {
-            margin-top: 50px;
-            color: #666;
+        h1 { color: #d32f2f; margin-bottom: 10px; }
+        .status-text { font-size: 1.1em; color: #555; line-height: 1.6; }
+
+        .queue-container {
+            margin: 25px 0;
+            padding: 20px;
+            background-color: #fffdf0;
+            border: 1px dashed #ff9800;
+            border-radius: 12px;
+        }
+
+        .progress-bg {
+            width: 100%;
+            height: 24px;
+            background-color: #eee;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            width: 0%; 
+            height: 100%;
+            background: linear-gradient(90deg, #ff9800, #f44336);
+            transition: width 0.8s linear; /* 讓進度條移動平滑 */
+        }
+
+        .count-number { font-weight: bold; color: #d32f2f; font-size: 1.4em; }
+        hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+        .contact-info { text-align: left; font-size: 0.9em; color: #444; display: inline-block; }
+
+        .footer-hint {
+            margin-top: 60px;
+            color: #999;
+            font-style: italic;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-10px);}
+            60% {transform: translateY(-5px);}
         }
     </style>
 </head>
 <body>
 
     <div class="left-container">
-        <img id="mainImg" src="01.png" alt="道歉圖">
+        <img id="mainImg" src="01.png" alt="道歉動作中">
     </div>
 
     <div class="right-content">
         <div class="info-box">
             <h1>十分抱歉！</h1>
-            <p>系統目前正在整修中...</p>
-            <p>我們深感遺憾並致上十二萬分的歉意。</p>
+            <p class="status-text"><strong>(iLearn) 系統目前忙碌中</strong><br>伺服器負載過高，工程師努力搶修中...</p>
+            
+            <div class="queue-container">
+                <div>目前前方排隊人數：<span id="queue-count" class="count-number">--</span> 人</div>
+                <div class="progress-bg">
+                    <div id="progress-bar" class="progress-fill"></div>
+                </div>
+                <div style="font-size: 0.85em; color: #666;">
+                    您的預計等待時間：<span id="wait-time">--</span> 分鐘
+                </div>
+            </div>
+
             <hr>
-            <h3>聯繫資訊</h3>
-            <p>客服信箱：support@example.com</p>
-            <p>服務電話：0800-000-000</p>
+            <div class="contact-info">
+                <strong>聯繫資訊：</strong><br>
+                • 服務處室：資訊總處<br>
+                • 服務電話：886-4-24517250 轉 2780
+            </div>
         </div>
 
-        <div class="footer-info">
-            <p>（請繼續往下滑，感受我們的誠意）</p>
+        <div class="footer-hint">
+            <p>↓ 請持續往下滑，感受我們深深的歉意 ↓</p>
         </div>
     </div>
 
     <script>
+        // 1. 圖片切換邏輯 (維持滾動觸發)
         window.addEventListener("scroll", function() {
             let scrollY = window.scrollY;
             let img = document.getElementById("mainImg");
-            
-            // 每滑動 200px 切換一次圖片
-            // 使用陣列定義循環順序：1 -> 2 -> 3 -> 2 (然後重複)
             const sequence = ["01.png", "02.png", "03.png", "02.png"];
-            
-            // 計算現在該顯示第幾張圖
-            // step 代表目前滑到了第幾個「動作階段」
-            let step = Math.floor(scrollY / 200);
-            
-            // 透過取餘數 (%) 讓索引值永遠在 0~3 之間循環
+            let step = Math.floor(scrollY / 150);
             let index = step % sequence.length;
-            
             img.src = sequence[index];
         });
+
+        // 2. 排隊計數邏輯 (時間驅動)
+        let initialQueue = Math.floor(Math.random() * 50) + 30; // 初始人數 30-80 人
+        let currentQueue = initialQueue;
+        
+        const queueEl = document.getElementById("queue-count");
+        const timeEl = document.getElementById("wait-time");
+        const progressEl = document.getElementById("progress-bar");
+
+        function updateDisplay() {
+            queueEl.innerText = currentQueue;
+            timeEl.innerText = Math.ceil(currentQueue * 0.5); // 假設每人半分鐘
+            
+            // 計算進度百分比 (從 0% 到 100%)
+            let progress = ((initialQueue - currentQueue) / initialQueue) * 100;
+            progressEl.style.width = progress + "%";
+
+            // 如果人數歸零
+            if (currentQueue <= 0) {
+                clearInterval(timer);
+                setTimeout(() => {
+                    alert("連線逾時，請刷新頁面。");
+                    window.location.reload(); // 重新整理頁面
+                }, 500);
+            }
+        }
+
+        // 初始化顯示
+        updateDisplay();
+
+        // 設定定時器：每 1.5 秒減少 1~3 人
+        const timer = setInterval(() => {
+            let drop = Math.floor(Math.random() * 3) + 1;
+            currentQueue -= drop;
+            if (currentQueue < 0) currentQueue = 0;
+            updateDisplay();
+        }, 1500);
+
     </script>
 </body>
 </html>
