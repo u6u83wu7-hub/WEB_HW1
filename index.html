@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>iLearn 系統忙碌中 - 搶修大作戰</title>
+    
     <style>
+        /* 基本網頁設定，給予高度 4000px 讓使用者可以一直往下滑 */
         body { margin: 0; padding: 0; height: 4000px; font-family: "Microsoft JhengHei", Arial, sans-serif; display: flex; background-color: #fafafa; }
         
-        /* --- 小遊戲彈窗 --- */
+        /* --- 遊戲畫面彈窗 --- */
+        /* 這是一塊黑色的半透明布幕，預設隱藏(display: none)，點擊按鈕後才會覆蓋整個螢幕 */
         #game-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); z-index: 10000;
@@ -16,19 +19,24 @@
             box-sizing: border-box; padding: 10px;
         }
         
+        /* 實際跑酷遊戲的畫布 */
         #game-canvas { 
             background: #e0f7fa; border: 5px solid #333; border-radius: 8px; 
-            cursor: ew-resize; max-width: 100vw; box-shadow: 0 0 20px rgba(255,255,255,0.2);
-            margin-top: 20px; 
-            max-height: 60vh; height: auto;
+            cursor: ew-resize; /* 游標變成左右箭頭，提示玩家可左右移動 */
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
+            /* 限制畫布最大高度，確保在各種尺寸的螢幕上都不會被切掉 */
+            max-height: 60vh; max-width: 95vw;
+            width: auto; height: auto;
         }
 
+        /* 遊戲上方的文字與計分板 */
         .game-header { text-align: center; margin-bottom: 5px; }
         .game-header h2 { margin: 0; color: #ffeb3b; font-size: 1.5em; }
         .game-header p { margin: 5px 0; font-weight: normal; font-family: "Microsoft JhengHei"; font-size: 0.9em; }
         .score-board { color: #4CAF50; font-size: 1.2em; margin-top: 5px; }
 
-        /* --- 核心修改：結算畫面 (Lose Screen) --- */
+        /* --- 結算畫面 (Lose Screen) 彈窗 --- */
+        /* 玩家輸掉時跳出的另一塊黑色布幕 */
         #lose-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); z-index: 10001;
@@ -37,6 +45,7 @@
             box-sizing: border-box; padding: 20px;
         }
         
+        /* 結算畫面的白色內容框 */
         #lose-content {
             background: white; color: black; padding: 30px 20px; border-radius: 12px;
             text-align: center; width: 90%; max-width: 400px;
@@ -44,32 +53,53 @@
             display: flex; flex-direction: column; align-items: center;
         }
         
+        /* 結算畫面上的撲街照片 */
         #lose-image {
             max-width: 100%; 
-            max-height: 35vh; /* 防止照片太高把按鈕擠掉 */
+            max-height: 35vh; /* 防止照片太大把底下的按鈕擠出畫面 */
             object-fit: contain; 
             margin-bottom: 15px;
         }
 
-        /* --- 左側/右側 排版 --- */
-        .left-container { width: 40%; height: 100vh; position: fixed; top: 0; left: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #e9e9e9; border-right: 1px solid #ddd; }
+        /* --- 主頁面：左側排版 (磕頭照片區) --- */
+        .left-container { 
+            width: 40%; height: 100vh; position: fixed; top: 0; left: 0; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            background-color: #e9e9e9; border-right: 1px solid #ddd; 
+        }
         .img-wrapper { flex: 0 1 auto; display: flex; justify-content: center; align-items: center; margin-bottom: 20px; }
         .left-container img { max-width: 80%; height: auto; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1)); }
-        .scroll-hint-box { background-color: #333; color: #fff; padding: 10px 20px; border-radius: 30px; font-size: 0.9em; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); animation: bounce 2s infinite; }
-        @keyframes bounce { 0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 40% {transform: translateY(-10px);} 60% {transform: translateY(-5px);} }
+        
+        /* 照片下方那顆會一直跳動的「往下切」提示按鈕 */
+        .scroll-hint-box { 
+            background-color: #333; color: #fff; padding: 10px 20px; border-radius: 30px; 
+            font-size: 0.9em; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
+            animation: bounce 2s infinite; /* 綁定跳動動畫 */
+        }
+        /* 定義跳動的節奏 */
+        @keyframes bounce { 
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 
+            40% {transform: translateY(-10px);} 
+            60% {transform: translateY(-5px);} 
+        }
+
+        /* --- 主頁面：右側排版 (道歉文字與按鈕區) --- */
         .right-content { margin-left: 40%; width: 60%; display: flex; flex-direction: column; align-items: center; padding-top: 15vh; }
         .info-box { width: 450px; padding: 40px; border: 2px solid #333; background: white; text-align: center; position: sticky; top: 80px; box-shadow: 10px 10px 0px #333; }
+        
+        /* 假的排隊進度條樣式 */
         .queue-container { margin: 25px 0; padding: 20px; background-color: #fffdf0; border: 1px dashed #ff9800; border-radius: 12px; }
         .progress-bg { width: 100%; height: 24px; background-color: #eee; border-radius: 12px; overflow: hidden; margin: 10px 0; }
         .progress-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #ff9800, #f44336); transition: width 0.8s linear; }
         
+        /* 進入遊戲/重新開始的紅色按鈕 */
         .game-start-btn { 
             background-color: #d32f2f; color: white; border: none; padding: 12px 24px; 
             font-size: 1.1em; font-weight: bold; border-radius: 50px; cursor: pointer; 
             transition: transform 0.2s, background-color 0.2s; margin-top: 15px; 
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); 
         }
-        .game-start-btn:hover { transform: scale(1.05); filter: brightness(1.1); }
+        .game-start-btn:hover { transform: scale(1.05); filter: brightness(1.1); } /* 滑鼠移過去會放大一點 */
     </style>
 </head>
 <body>
@@ -114,29 +144,42 @@
         </div>
     </div>
 
+
     <script>
         /* --- 載入角色圖片 --- */
+        // 預先載入工程師、男女學生的照片，供畫布使用
         const imgEngineer = new Image(); imgEngineer.src = 'engineer.png';
         const imgBoy = new Image(); imgBoy.src = 'boy.png';
         const imgGirl = new Image(); imgGirl.src = 'girl.png';
 
-        /* --- 1. 圖片與排隊邏輯 --- */
+
+        /* ==========================================
+           第一部分：主頁面的圖片切換與排隊邏輯
+           ========================================== */
+           
+        // 隨機產生一開始的排隊人數 (30~79人)
         let initialQueue = Math.floor(Math.random() * 50) + 30;
         let currentQueue = initialQueue;
         let queueTimer;
 
+        // 監聽使用者的滑鼠滾輪/觸控滑動事件
         window.addEventListener("scroll", function() {
             let scrollY = window.scrollY;
             let img = document.getElementById("mainImg");
+            // 每滑動 150px 就切換一張圖片，陣列為 1->2->3->2 的磕頭循環
             img.src = ["01.png", "02.png", "03.png", "02.png"][Math.floor(scrollY / 150) % 4];
         });
 
+        // 更新畫面上的排隊數字與進度條
         function updateQueueDisplay() {
             document.getElementById("queue-count").innerText = currentQueue;
-            document.getElementById("wait-time").innerText = Math.ceil(currentQueue * 0.5);
+            document.getElementById("wait-time").innerText = Math.ceil(currentQueue * 0.5); // 假裝每人要等半分鐘
+            
+            // 計算進度條百分比
             let progressRatio = initialQueue > 0 ? ((initialQueue - currentQueue) / initialQueue) * 100 : 100;
             document.getElementById("progress-bar").style.width = progressRatio + "%";
             
+            // 如果排隊排到 0 人了，就彈出提示並重置排隊人數 (惡意滿滿)
             if (currentQueue <= 0) { 
                 alert("系統無回應，將為您重新連線排隊..."); 
                 initialQueue = Math.floor(Math.random() * 50) + 30;
@@ -144,98 +187,125 @@
             }
         }
 
+        // 啟動排隊倒數計時器
         function startQueue() {
             clearInterval(queueTimer);
+            // 每 2 秒隨機減少 1~2 人
             queueTimer = setInterval(() => {
                 currentQueue = Math.max(0, currentQueue - (Math.floor(Math.random() * 2) + 1));
                 updateQueueDisplay();
             }, 2000);
             updateQueueDisplay();
         }
+        
+        // 網頁一打開就開始排隊
         startQueue();
 
-        /* --- 2. 小遊戲與畫面切換邏輯 --- */
+
+        /* ==========================================
+           第二部分：跑酷小遊戲核心邏輯
+           ========================================== */
+           
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
         
-        let gameActive = false;
-        let engCount = 5; 
-        let playerX = 200, targetX = 200;
-        const playerY = 380; 
+        // 遊戲狀態變數
+        let gameActive = false; // 遊戲是否進行中
+        let engCount = 5;       // 玩家(工程師)的初始人數
+        let playerX = 200, targetX = 200; // 玩家目前X座標、滑鼠目標X座標
+        const playerY = 380;    // 玩家固定的Y座標(不會前後移動)
         
-        let gameObjects = [];
-        let scrollSpeed = 5;
-        let distanceTraveled = 0;
-        let score = 0;
+        let gameObjects = [];   // 存放畫面上所有物件(門、敵人)的陣列
+        let scrollSpeed = 5;    // 畫面往下捲動的速度(感覺像往前跑)
+        let distanceTraveled = 0; // 跑了多遠，用來增加難度
+        let score = 0;          // 處理的作業分數
 
+        // 監聽滑鼠移動，計算玩家應該移動到的目標X座標
         canvas.addEventListener('mousemove', (e) => { 
             const rect = canvas.getBoundingClientRect();
+            // 透過比例轉換，確保滑鼠在縮放後的畫布上依然精準
             targetX = (e.clientX - rect.left) * (canvas.width / rect.width); 
         });
+        
+        // 監聽手機觸控滑動
         canvas.addEventListener('touchmove', (e) => { 
-            e.preventDefault(); 
+            e.preventDefault(); // 防止畫面跟著滾動
             const rect = canvas.getBoundingClientRect();
             targetX = (e.touches[0].clientX - rect.left) * (canvas.width / rect.width); 
         }, {passive: false});
 
+        // 點擊「協助搶修」按鈕後執行的函數
         function openGame() {
+            // 重置外面的道歉文字與按鈕顏色
             document.getElementById('crash-text').innerHTML = `<strong>(iLearn) 系統目前忙碌中</strong><br>伺服器負載過高，工程師正在努力維修中...`;
             document.getElementById('startBtn').innerText = "協助搶修 (進入小遊戲)";
             document.getElementById('startBtn').style.backgroundColor = "#d32f2f"; 
             
+            // 顯示遊戲遮罩，並禁止原本網頁的捲動
             document.getElementById('game-overlay').style.display = 'flex';
-            document.body.style.overflow = 'hidden'; // 禁止主頁面滑動
-            initGame();
+            document.body.style.overflow = 'hidden'; 
+            initGame(); // 初始化遊戲數值
         }
 
-        // 核心修改：點擊離開按鈕，回到主畫面
+        // 點擊「離開」結算畫面後執行的函數
         function closeLoseScreen() {
-            document.getElementById('lose-overlay').style.display = 'none'; 
-            document.body.style.overflow = 'auto'; // 恢復主頁面滑動，讓玩家可以看磕頭
+            document.getElementById('lose-overlay').style.display = 'none'; // 藏起結算畫面
+            document.body.style.overflow = 'auto'; // 恢復網頁的捲動功能，讓玩家可以去磕頭
         }
 
+        // 初始化遊戲數值
         function initGame() {
             engCount = 10;
             playerX = 200; targetX = 200;
             distanceTraveled = 0;
             score = 0;
-            gameObjects = [];
+            gameObjects = []; // 清空之前的物件
             document.getElementById('score').innerText = score;
             gameActive = true;
-            spawnGate(-100);
-            requestAnimationFrame(gameLoop);
+            
+            spawnGate(-100); // 一開局先產生一道門讓玩家熟練
+            requestAnimationFrame(gameLoop); // 啟動遊戲迴圈
         }
 
+        // 產生「算數傳送門」
         function spawnGate(yPos) {
+            // 隨著距離增加，門給的加成會變多
             let diffMultiplier = 1 + Math.floor(distanceTraveled / 2000); 
             const ops = [
                 { op: '+', val: (Math.floor(Math.random() * 30) + 10) * diffMultiplier },
                 { op: '+', val: (Math.floor(Math.random() * 50) + 20) * diffMultiplier },
                 { op: 'x', val: Math.floor(Math.random() * 3) + 2 },
-                { op: '-', val: Math.floor(Math.random() * 20) + 5 }
+                { op: '-', val: Math.floor(Math.random() * 20) + 5 } // 陷阱門
             ];
+            // 隨機挑兩個選項作為左門和右門
             let left = ops[Math.floor(Math.random() * ops.length)];
             let right = ops[Math.floor(Math.random() * ops.length)];
+            
             gameObjects.push({ type: 'gate', y: yPos, left: left, right: right, passed: false });
         }
 
+        // 產生「學生大軍 (敵人)」
         function spawnEnemy(yPos) {
+            // 隨距離增加難度
             let diffLevel = distanceTraveled / 1000; 
+            // 決定一次產生幾團學生夾擊 (最多5團)
             let maxSwarms = Math.min(5, 1 + Math.floor(diffLevel / 3));
             let numEnemies = 1 + Math.floor(Math.random() * maxSwarms);
 
             for(let i = 0; i < numEnemies; i++) {
+                // 決定學生的數量與強度
                 let baseEnemy = 20 + Math.floor(diffLevel * 40);
                 let count = baseEnemy + Math.floor(Math.random() * baseEnemy * 0.5);
-                let homingPower = Math.min(0.08, 0.02 + (diffLevel * 0.005) + Math.random() * 0.015);
-                let extraFallSpeed = Math.min(4.0, (diffLevel * 0.3) + Math.random());
+                let homingPower = Math.min(0.08, 0.02 + (diffLevel * 0.005) + Math.random() * 0.015); // 追蹤玩家的能力
+                let extraFallSpeed = Math.min(4.0, (diffLevel * 0.3) + Math.random()); // 衝刺速度
                 
+                // 隨機決定這團照片是男生還是女生
                 let isBoy = Math.random() < 0.5;
 
                 gameObjects.push({ 
                     type: 'enemy', 
-                    x: Math.random() * (canvas.width - 80) + 40, 
-                    y: yPos - (i * 70), 
+                    x: Math.random() * (canvas.width - 80) + 40, // 隨機X座標
+                    y: yPos - (i * 70), // 錯開Y座標，形成波浪攻勢
                     count: count, 
                     homing: homingPower,     
                     fallSpeed: extraFallSpeed, 
@@ -245,21 +315,25 @@
             }
         }
 
+        // 玩家穿過門時的算數處理
         function applyGateMath(op, val) {
             if (op === '+') engCount += val;
             if (op === '-') engCount -= val;
             if (op === 'x') engCount *= val;
-            if (engCount < 1) engCount = 1; 
+            if (engCount < 1) engCount = 1; // 保底留1人，不能因為過錯門直接死
         }
 
+        // --- 遊戲主迴圈 (每秒執行約 60 次) ---
         function gameLoop() {
             if (!gameActive) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // 清空畫布
 
+            // 推進距離與分數
             distanceTraveled += scrollSpeed;
             score += 0.05; 
             document.getElementById('score').innerText = Math.floor(score);
 
+            // 畫出地板移動的線條(營造速度感)
             ctx.strokeStyle = 'rgba(0,0,0,0.05)';
             ctx.lineWidth = 2;
             for(let i=0; i<canvas.height; i+=40) {
@@ -267,80 +341,97 @@
                 ctx.beginPath(); ctx.moveTo(0, i + offset); ctx.lineTo(canvas.width, i + offset); ctx.stroke();
             }
 
+            // 讓玩家滑順地移動到滑鼠的位置 (具有慣性效果)
             playerX += (targetX - playerX) * 0.15;
+            // 限制玩家不要跑出邊界
             if (playerX < 20) playerX = 20;
             if (playerX > canvas.width - 20) playerX = canvas.width - 20;
 
+            // 計算玩家的光圈大小 (人數越多光圈越大)
             let playerRadius = Math.min(60, 15 + Math.sqrt(engCount) * 2);
 
-            let spawnThreshold = Math.max(60, 160 - Math.floor(distanceTraveled / 100));
+            // 動態產生前面的障礙或加成
+            let spawnThreshold = Math.max(60, 160 - Math.floor(distanceTraveled / 100)); // 越後面東西出越快
             let lastObj = gameObjects[gameObjects.length - 1];
             
+            // 如果畫面最上方沒有東西了，就隨機生一個
             if (!lastObj || lastObj.y > spawnThreshold) { 
-                if (Math.random() < 0.35) spawnGate(-100);
-                else spawnEnemy(-100);
+                if (Math.random() < 0.35) spawnGate(-100); // 35% 機率生門
+                else spawnEnemy(-100); // 65% 機率生敵人
             }
 
+            // 檢查並繪製所有物件 (由後往前檢查，方便刪除)
             for (let i = gameObjects.length - 1; i >= 0; i--) {
                 let obj = gameObjects[i];
-                obj.y += scrollSpeed;
+                obj.y += scrollSpeed; // 讓物件往下掉
 
-                if (obj.passed) continue;
+                if (obj.passed) continue; // 已經處理過的就不管
 
+                // 如果是「傳送門」
                 if (obj.type === 'gate') {
-                    ctx.fillStyle = 'rgba(103, 58, 183, 0.4)'; ctx.fillRect(0, obj.y, canvas.width/2, 50);
-                    ctx.fillStyle = 'rgba(76, 175, 80, 0.4)'; ctx.fillRect(canvas.width/2, obj.y, canvas.width/2, 50);
-                    ctx.fillStyle = 'white'; ctx.fillRect(canvas.width/2 - 2, obj.y, 4, 50);
+                    // 畫出左右兩個半透明有色方塊
+                    ctx.fillStyle = 'rgba(103, 58, 183, 0.4)'; ctx.fillRect(0, obj.y, canvas.width/2, 50); // 左門紫色
+                    ctx.fillStyle = 'rgba(76, 175, 80, 0.4)'; ctx.fillRect(canvas.width/2, obj.y, canvas.width/2, 50); // 右門綠色
+                    ctx.fillStyle = 'white'; ctx.fillRect(canvas.width/2 - 2, obj.y, 4, 50); // 中間分隔線
                     
+                    // 寫上運算數字
                     ctx.fillStyle = 'black'; ctx.font = '22px Arial Black'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                     ctx.fillText(obj.left.op + obj.left.val, canvas.width/4, obj.y + 25);
                     ctx.fillText(obj.right.op + obj.right.val, canvas.width*0.75, obj.y + 25);
 
+                    // 判斷玩家是否過門
                     if (playerY > obj.y && playerY < obj.y + 50) {
                         obj.passed = true;
                         if (playerX < canvas.width / 2) applyGateMath(obj.left.op, obj.left.val);
                         else applyGateMath(obj.right.op, obj.right.val);
                     }
                 } 
+                // 如果是「敵人 (學生大軍)」
                 else if (obj.type === 'enemy') {
+                    // 讓敵人加速並朝玩家吸過去
                     if (obj.y > 0) {
                         obj.y += 2.0 + obj.fallSpeed; 
                         obj.x += (playerX - obj.x) * obj.homing; 
                     }
 
+                    // 敵人光圈大小
                     let enemyRadius = Math.min(60, 15 + Math.sqrt(obj.count) * 2);
                     
+                    // 畫敵人的紅色半透明光圈底座
                     ctx.fillStyle = 'rgba(244, 67, 54, 0.4)'; 
                     ctx.beginPath(); ctx.arc(obj.x, obj.y, enemyRadius, 0, Math.PI*2); ctx.fill();
                     ctx.strokeStyle = '#f44336'; ctx.lineWidth = 3; ctx.stroke();
 
+                    // 繪製學生的圖片，並將其裁切成圓形放入光圈中
                     if (obj.charImg.complete) {
                         ctx.save(); 
                         ctx.beginPath(); 
-                        ctx.arc(obj.x, obj.y, enemyRadius, 0, Math.PI * 2); 
-                        ctx.clip(); 
+                        ctx.arc(obj.x, obj.y, enemyRadius, 0, Math.PI * 2); // 畫出圓形裁切範圍
+                        ctx.clip(); // 啟動裁切
+                        // 畫入圖片(只會顯示在圓形內)
                         ctx.drawImage(obj.charImg, obj.x - enemyRadius, obj.y - enemyRadius, enemyRadius * 2, enemyRadius * 2);
                         ctx.restore(); 
                     }
                     
-                    ctx.fillStyle = '#f44336'; 
-                    ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 3;
-                    ctx.font = '900 20px Arial Black'; 
-                    ctx.textAlign = 'center'; 
-                    ctx.textBaseline = 'bottom'; 
+                    // 在頭上寫上紅色數字與白色描邊
+                    ctx.fillStyle = '#f44336'; ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 3; ctx.font = '900 20px Arial Black'; 
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; 
                     ctx.strokeText(Math.ceil(obj.count), obj.x, obj.y - enemyRadius - 5);
                     ctx.fillText(Math.ceil(obj.count), obj.x, obj.y - enemyRadius - 5);
 
+                    // 碰撞判定：玩家與敵人的距離小於兩個光圈半徑之和
                     let dist = Math.hypot(playerX - obj.x, playerY - obj.y);
                     if (dist < playerRadius + enemyRadius) {
+                        // 每次碰撞消耗一定比例的人數 (像絞肉機一樣快速減少)
                         let drain = Math.ceil(Math.min(engCount, obj.count) * 0.15); 
                         if(drain < 1) drain = 1;
                         
                         engCount -= drain;
                         obj.count -= drain;
-                        score += drain; 
+                        score += drain; // 轉化為分數
 
+                        // 玩家人數歸零 => 輸了
                         if (engCount <= 0) {
                             gameCrash();
                             return;
@@ -351,15 +442,19 @@
                     }
                 }
 
+                // 如果物件跑出螢幕太遠，將其從陣列中刪除節省效能
                 if (obj.y > canvas.height + 200) {
                     gameObjects.splice(i, 1);
                 }
             }
 
+            // --- 繪製玩家自己 ---
+            // 玩家藍色半透明光圈底座
             ctx.fillStyle = 'rgba(33, 150, 243, 0.4)';
             ctx.beginPath(); ctx.arc(playerX, playerY, playerRadius, 0, Math.PI*2); ctx.fill();
             ctx.strokeStyle = '#2196F3'; ctx.lineWidth = 3; ctx.stroke();
 
+            // 繪製工程師圖片，並裁切成圓形
             if (imgEngineer.complete) {
                 ctx.save();
                 ctx.beginPath(); 
@@ -369,38 +464,39 @@
                 ctx.restore();
             }
 
-            ctx.fillStyle = '#2196F3'; 
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 3;
-            ctx.font = '900 22px Arial Black'; 
-            ctx.textAlign = 'center'; 
-            ctx.textBaseline = 'bottom';
+            // 在頭上寫上藍色數字與白色描邊
+            ctx.fillStyle = '#2196F3'; ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3; ctx.font = '900 22px Arial Black'; 
+            ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
             ctx.strokeText(Math.ceil(engCount), playerX, playerY - playerRadius - 5);
             ctx.fillText(Math.ceil(engCount), playerX, playerY - playerRadius - 5);
 
+            // 繼續下一次畫面更新
             requestAnimationFrame(gameLoop);
         }
 
+        // 玩家輸了的時候觸發的函數
         function gameCrash() {
-            gameActive = false;
+            gameActive = false; // 停止遊戲更新
             let finalScore = Math.floor(score);
-            finalScore = Math.max(1, finalScore); 
+            finalScore = Math.max(1, finalScore); // 確保至少有1分
             
-            // 將 finalScore 訊息填入 #lose-overlay 中 (增加顏色突顯重點)
-            document.getElementById('lose-score-msg').innerHTML = `你帶領工程師成功處理了 ${finalScore} 份作業，但最後還是被排山倒海的學生淹沒了...`;
+            // 將結算成績寫入新的自定義結算畫面中
+            document.getElementById('lose-score-msg').innerHTML = `你帶領工程師成功處理了 <span style="color:#d32f2f;font-size:1.2em">${finalScore}</span> 份作業，但最後還是被排山倒海的學生淹沒了...`;
             
-            document.getElementById('game-overlay').style.display = 'none'; // 隱藏遊戲畫面
-            document.getElementById('lose-overlay').style.display = 'flex'; // 顯示輸了的照片畫面
+            // 隱藏遊戲畫布，顯示結算畫面
+            document.getElementById('game-overlay').style.display = 'none'; 
+            document.getElementById('lose-overlay').style.display = 'flex'; 
             
-            // 更新主頁面文字為嘲諷感
+            // 順便更新外層主頁面的文字，充滿嘲諷感
             document.getElementById('crash-text').innerHTML = `<strong style='color:red;'>(iLearn) 系統當機中！</strong><br>工程師已被 ${finalScore} 份海量作業壓垮...`;
             
-            // 更新主頁面按鈕文字，讓玩家可以重玩
+            // 更新主頁面按鈕狀態，讓它可以重玩
             let btn = document.getElementById('startBtn');
             btn.innerText = "再次派出工程師";
             btn.style.backgroundColor = "#ff5722"; 
             
-            // 更新主頁面排隊人數
+            // 將排隊人數設定為你的得分，讓它產生永遠排不完的絕望感
             initialQueue = finalScore; 
             currentQueue = finalScore;
             startQueue();
