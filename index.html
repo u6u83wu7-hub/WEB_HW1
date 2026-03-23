@@ -7,23 +7,51 @@
     <style>
         body { margin: 0; padding: 0; height: 4000px; font-family: "Microsoft JhengHei", Arial, sans-serif; display: flex; background-color: #fafafa; }
         
+        /* --- 小遊戲彈窗 --- */
         #game-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); z-index: 10000;
-            display: none; flex-direction: column; justify-content: center; align-items: center;
+            display: none; flex-direction: column; justify-content: flex-start; align-items: center; 
             color: white; font-family: 'Arial Black', sans-serif;
+            box-sizing: border-box; padding: 10px;
         }
         
         #game-canvas { 
             background: #e0f7fa; border: 5px solid #333; border-radius: 8px; 
             cursor: ew-resize; max-width: 100vw; box-shadow: 0 0 20px rgba(255,255,255,0.2);
+            margin-top: 20px; 
+            max-height: 60vh; height: auto;
         }
 
-        .game-header { text-align: center; margin-bottom: 10px; }
-        .game-header h2 { margin: 0; color: #ffeb3b; }
+        .game-header { text-align: center; margin-bottom: 5px; }
+        .game-header h2 { margin: 0; color: #ffeb3b; font-size: 1.5em; }
         .game-header p { margin: 5px 0; font-weight: normal; font-family: "Microsoft JhengHei"; font-size: 0.9em; }
         .score-board { color: #4CAF50; font-size: 1.2em; margin-top: 5px; }
 
+        /* --- 核心修改：結算畫面 (Lose Screen) --- */
+        #lose-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 10001;
+            display: none; flex-direction: column; justify-content: center; align-items: center; 
+            color: white; font-family: "Microsoft JhengHei", Arial, sans-serif;
+            box-sizing: border-box; padding: 20px;
+        }
+        
+        #lose-content {
+            background: white; color: black; padding: 30px 20px; border-radius: 12px;
+            text-align: center; width: 90%; max-width: 400px;
+            box-shadow: 0px 10px 25px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; align-items: center;
+        }
+        
+        #lose-image {
+            max-width: 100%; 
+            max-height: 35vh; /* 防止照片太高把按鈕擠掉 */
+            object-fit: contain; 
+            margin-bottom: 15px;
+        }
+
+        /* --- 左側/右側 排版 --- */
         .left-container { width: 40%; height: 100vh; position: fixed; top: 0; left: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #e9e9e9; border-right: 1px solid #ddd; }
         .img-wrapper { flex: 0 1 auto; display: flex; justify-content: center; align-items: center; margin-bottom: 20px; }
         .left-container img { max-width: 80%; height: auto; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1)); }
@@ -39,9 +67,9 @@
             background-color: #d32f2f; color: white; border: none; padding: 12px 24px; 
             font-size: 1.1em; font-weight: bold; border-radius: 50px; cursor: pointer; 
             transition: transform 0.2s, background-color 0.2s; margin-top: 15px; 
-            box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4); 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); 
         }
-        .game-start-btn:hover { background-color: #b71c1c; transform: scale(1.05); }
+        .game-start-btn:hover { transform: scale(1.05); filter: brightness(1.1); }
     </style>
 </head>
 <body>
@@ -52,7 +80,16 @@
             <p>光圈碰到才算數！躲避學生大軍！</p>
             <div class="score-board">成功處理作業份數：<span id="score">0</span></div>
         </div>
-        <canvas id="game-canvas" width="400" height="600"></canvas>
+        <canvas id="game-canvas" width="400" height="450"></canvas>
+    </div>
+
+    <div id="lose-overlay">
+        <div id="lose-content">
+            <img id="lose-image" src="lose.png" alt="防線崩潰">
+            <h2 style="color: #d32f2f; margin: 10px 0;">防線崩潰！</h2>
+            <p id="lose-score-msg" style="line-height: 1.5; font-size: 1.1em; font-weight: bold; margin-bottom: 20px; color: #444;"></p>
+            <button class="game-start-btn" style="background-color: #555; margin-top: 0; width: 80%;" onclick="closeLoseScreen()">離開</button>
+        </div>
     </div>
 
     <div class="left-container">
@@ -97,7 +134,6 @@
         function updateQueueDisplay() {
             document.getElementById("queue-count").innerText = currentQueue;
             document.getElementById("wait-time").innerText = Math.ceil(currentQueue * 0.5);
-            // 避免分母為0導致進度條壞掉
             let progressRatio = initialQueue > 0 ? ((initialQueue - currentQueue) / initialQueue) * 100 : 100;
             document.getElementById("progress-bar").style.width = progressRatio + "%";
             
@@ -118,30 +154,44 @@
         }
         startQueue();
 
-        /* --- 2. 困難版跑酷小遊戲邏輯 --- */
+        /* --- 2. 小遊戲與畫面切換邏輯 --- */
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
         
         let gameActive = false;
         let engCount = 5; 
         let playerX = 200, targetX = 200;
-        const playerY = 480;
+        const playerY = 380; 
         
         let gameObjects = [];
         let scrollSpeed = 5;
         let distanceTraveled = 0;
         let score = 0;
 
-        canvas.addEventListener('mousemove', (e) => { targetX = e.clientX - canvas.getBoundingClientRect().left; });
-        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); targetX = e.touches[0].clientX - canvas.getBoundingClientRect().left; }, {passive: false});
+        canvas.addEventListener('mousemove', (e) => { 
+            const rect = canvas.getBoundingClientRect();
+            targetX = (e.clientX - rect.left) * (canvas.width / rect.width); 
+        });
+        canvas.addEventListener('touchmove', (e) => { 
+            e.preventDefault(); 
+            const rect = canvas.getBoundingClientRect();
+            targetX = (e.touches[0].clientX - rect.left) * (canvas.width / rect.width); 
+        }, {passive: false});
 
         function openGame() {
-            document.getElementById('crash-text').innerHTML = `<strong>(iLearn) 系統目前忙碌中</strong><br>伺服器負載過高，工程師正在跪著修...`;
+            document.getElementById('crash-text').innerHTML = `<strong>(iLearn) 系統目前忙碌中</strong><br>伺服器負載過高，工程師正在努力維修中...`;
             document.getElementById('startBtn').innerText = "協助搶修 (進入小遊戲)";
+            document.getElementById('startBtn').style.backgroundColor = "#d32f2f"; 
             
             document.getElementById('game-overlay').style.display = 'flex';
-            document.body.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden'; // 禁止主頁面滑動
             initGame();
+        }
+
+        // 核心修改：點擊離開按鈕，回到主畫面
+        function closeLoseScreen() {
+            document.getElementById('lose-overlay').style.display = 'none'; 
+            document.body.style.overflow = 'auto'; // 恢復主頁面滑動，讓玩家可以看磕頭
         }
 
         function initGame() {
@@ -180,7 +230,6 @@
                 let homingPower = Math.min(0.08, 0.02 + (diffLevel * 0.005) + Math.random() * 0.015);
                 let extraFallSpeed = Math.min(4.0, (diffLevel * 0.3) + Math.random());
                 
-                // 隨機分配這團學生是男孩還是女孩
                 let isBoy = Math.random() < 0.5;
 
                 gameObjects.push({ 
@@ -191,7 +240,7 @@
                     homing: homingPower,     
                     fallSpeed: extraFallSpeed, 
                     passed: false,
-                    charImg: isBoy ? imgBoy : imgGirl // 指定照片
+                    charImg: isBoy ? imgBoy : imgGirl 
                 });
             }
         }
@@ -239,15 +288,14 @@
                 if (obj.passed) continue;
 
                 if (obj.type === 'gate') {
-                    ctx.fillStyle = 'rgba(33, 150, 243, 0.4)'; ctx.fillRect(0, obj.y, canvas.width/2, 50);
+                    ctx.fillStyle = 'rgba(103, 58, 183, 0.4)'; ctx.fillRect(0, obj.y, canvas.width/2, 50);
                     ctx.fillStyle = 'rgba(76, 175, 80, 0.4)'; ctx.fillRect(canvas.width/2, obj.y, canvas.width/2, 50);
                     ctx.fillStyle = 'white'; ctx.fillRect(canvas.width/2 - 2, obj.y, 4, 50);
                     
-                    ctx.fillStyle = 'black'; ctx.font = '22px Arial Black'; ctx.textAlign = 'center';
-                    ctx.fillText(obj.left.op + obj.left.val, canvas.width/4, obj.y + 35);
-                    ctx.fillText(obj.right.op + obj.right.val, canvas.width*0.75, obj.y + 35);
+                    ctx.fillStyle = 'black'; ctx.font = '22px Arial Black'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(obj.left.op + obj.left.val, canvas.width/4, obj.y + 25);
+                    ctx.fillText(obj.right.op + obj.right.val, canvas.width*0.75, obj.y + 25);
 
-                    // 以光圈判定是否進門
                     if (playerY > obj.y && playerY < obj.y + 50) {
                         obj.passed = true;
                         if (playerX < canvas.width / 2) applyGateMath(obj.left.op, obj.left.val);
@@ -262,25 +310,28 @@
 
                     let enemyRadius = Math.min(60, 15 + Math.sqrt(obj.count) * 2);
                     
-                    // --- 繪製敵人光圈(底座) ---
-                    ctx.fillStyle = 'rgba(244, 67, 54, 0.4)'; // 半透明紅色光圈
+                    ctx.fillStyle = 'rgba(244, 67, 54, 0.4)'; 
                     ctx.beginPath(); ctx.arc(obj.x, obj.y, enemyRadius, 0, Math.PI*2); ctx.fill();
                     ctx.strokeStyle = '#f44336'; ctx.lineWidth = 3; ctx.stroke();
 
-                    // --- 繪製學生照片 ---
-                    let imgSize = enemyRadius * 1.6; 
                     if (obj.charImg.complete) {
-                        ctx.drawImage(obj.charImg, obj.x - imgSize/2, obj.y - imgSize/1.4, imgSize, imgSize);
+                        ctx.save(); 
+                        ctx.beginPath(); 
+                        ctx.arc(obj.x, obj.y, enemyRadius, 0, Math.PI * 2); 
+                        ctx.clip(); 
+                        ctx.drawImage(obj.charImg, obj.x - enemyRadius, obj.y - enemyRadius, enemyRadius * 2, enemyRadius * 2);
+                        ctx.restore(); 
                     }
                     
-                    // --- 繪製敵方人數 (帶黑色陰影防遮擋) ---
-                    ctx.fillStyle = 'white'; 
-                    ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
-                    ctx.font = '18px Arial Black'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.fillText(Math.ceil(obj.count), obj.x, obj.y + enemyRadius * 0.6);
-                    ctx.shadowBlur = 0; 
+                    ctx.fillStyle = '#f44336'; 
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 3;
+                    ctx.font = '900 20px Arial Black'; 
+                    ctx.textAlign = 'center'; 
+                    ctx.textBaseline = 'bottom'; 
+                    ctx.strokeText(Math.ceil(obj.count), obj.x, obj.y - enemyRadius - 5);
+                    ctx.fillText(Math.ceil(obj.count), obj.x, obj.y - enemyRadius - 5);
 
-                    // 只有「光圈半徑」相交才算碰撞
                     let dist = Math.hypot(playerX - obj.x, playerY - obj.y);
                     if (dist < playerRadius + enemyRadius) {
                         let drain = Math.ceil(Math.min(engCount, obj.count) * 0.15); 
@@ -305,23 +356,27 @@
                 }
             }
 
-            // --- 繪製玩家光圈(底座) ---
-            ctx.fillStyle = 'rgba(33, 150, 243, 0.4)'; // 半透明藍色光圈
+            ctx.fillStyle = 'rgba(33, 150, 243, 0.4)';
             ctx.beginPath(); ctx.arc(playerX, playerY, playerRadius, 0, Math.PI*2); ctx.fill();
             ctx.strokeStyle = '#2196F3'; ctx.lineWidth = 3; ctx.stroke();
 
-            // --- 繪製工程師照片 ---
-            let pSize = playerRadius * 1.6;
             if (imgEngineer.complete) {
-                ctx.drawImage(imgEngineer, playerX - pSize/2, playerY - pSize/1.4, pSize, pSize);
+                ctx.save();
+                ctx.beginPath(); 
+                ctx.arc(playerX, playerY, playerRadius, 0, Math.PI * 2); 
+                ctx.clip();
+                ctx.drawImage(imgEngineer, playerX - playerRadius, playerY - playerRadius, playerRadius * 2, playerRadius * 2);
+                ctx.restore();
             }
 
-            // --- 繪製工程師人數 ---
-            ctx.fillStyle = 'white'; 
-            ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
-            ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(Math.ceil(engCount), playerX, playerY + playerRadius * 0.6);
-            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#2196F3'; 
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3;
+            ctx.font = '900 22px Arial Black'; 
+            ctx.textAlign = 'center'; 
+            ctx.textBaseline = 'bottom';
+            ctx.strokeText(Math.ceil(engCount), playerX, playerY - playerRadius - 5);
+            ctx.fillText(Math.ceil(engCount), playerX, playerY - playerRadius - 5);
 
             requestAnimationFrame(gameLoop);
         }
@@ -329,21 +384,23 @@
         function gameCrash() {
             gameActive = false;
             let finalScore = Math.floor(score);
-            // 避免一進去就死掉導致 finalScore 是 0，排隊人數至少為 1
             finalScore = Math.max(1, finalScore); 
             
-            alert(`防線崩潰！\n你帶領工程師成功處理了 ${finalScore} 份作業，但最後還是被排山倒海的學生淹沒了...`);
+            // 將 finalScore 訊息填入 #lose-overlay 中 (增加顏色突顯重點)
+            document.getElementById('lose-score-msg').innerHTML = `你帶領工程師成功處理了 ${finalScore} 份作業，但最後還是被排山倒海的學生淹沒了...`;
             
-            document.getElementById('game-overlay').style.display = 'none';
-            document.body.style.overflow = 'auto';
+            document.getElementById('game-overlay').style.display = 'none'; // 隱藏遊戲畫面
+            document.getElementById('lose-overlay').style.display = 'flex'; // 顯示輸了的照片畫面
             
-            document.getElementById('crash-text').innerHTML = `<strong style='color:red;'>(iLearn) 系統徹底死機！</strong><br>工程師已被 ${finalScore} 份海量作業壓垮...`;
+            // 更新主頁面文字為嘲諷感
+            document.getElementById('crash-text').innerHTML = `<strong style='color:red;'>(iLearn) 系統當機中！</strong><br>工程師已被 ${finalScore} 份海量作業壓垮...`;
             
+            // 更新主頁面按鈕文字，讓玩家可以重玩
             let btn = document.getElementById('startBtn');
             btn.innerText = "再次派出工程師";
             btn.style.backgroundColor = "#ff5722"; 
             
-            // 【核心修改】：排隊人數直接綁定你剛剛處理掉的作業分數！
+            // 更新主頁面排隊人數
             initialQueue = finalScore; 
             currentQueue = finalScore;
             startQueue();
