@@ -49,7 +49,7 @@
     <div id="game-overlay">
         <div class="game-header">
             <h2>🚨 伺服器保衛戰 🚨</h2>
-            <p>越後面學生越多、衝越快！試著活下去吧！</p>
+            <p>光圈碰到才算數！躲避學生大軍！</p>
             <div class="score-board">成功處理作業份數：<span id="score">0</span></div>
         </div>
         <canvas id="game-canvas" width="400" height="600"></canvas>
@@ -78,6 +78,11 @@
     </div>
 
     <script>
+        /* --- 載入角色圖片 --- */
+        const imgEngineer = new Image(); imgEngineer.src = 'engineer.png';
+        const imgBoy = new Image(); imgBoy.src = 'boy.png';
+        const imgGirl = new Image(); imgGirl.src = 'girl.png';
+
         /* --- 1. 圖片與排隊邏輯 --- */
         let initialQueue = Math.floor(Math.random() * 50) + 30;
         let currentQueue = initialQueue;
@@ -92,9 +97,10 @@
         function updateQueueDisplay() {
             document.getElementById("queue-count").innerText = currentQueue;
             document.getElementById("wait-time").innerText = Math.ceil(currentQueue * 0.5);
-            document.getElementById("progress-bar").style.width = ((initialQueue - currentQueue) / initialQueue) * 100 + "%";
+            // 避免分母為0導致進度條壞掉
+            let progressRatio = initialQueue > 0 ? ((initialQueue - currentQueue) / initialQueue) * 100 : 100;
+            document.getElementById("progress-bar").style.width = progressRatio + "%";
             
-            // 當排隊人數歸零時，重置為一開始的隨機人數，讓排隊永遠排不完
             if (currentQueue <= 0) { 
                 alert("系統無回應，將為您重新連線排隊..."); 
                 initialQueue = Math.floor(Math.random() * 50) + 30;
@@ -130,7 +136,6 @@
         canvas.addEventListener('touchmove', (e) => { e.preventDefault(); targetX = e.touches[0].clientX - canvas.getBoundingClientRect().left; }, {passive: false});
 
         function openGame() {
-            // 每次重新進入遊戲時，把外面的道歉文字恢復原狀
             document.getElementById('crash-text').innerHTML = `<strong>(iLearn) 系統目前忙碌中</strong><br>伺服器負載過高，工程師正在跪著修...`;
             document.getElementById('startBtn').innerText = "協助搶修 (進入小遊戲)";
             
@@ -174,6 +179,9 @@
                 let count = baseEnemy + Math.floor(Math.random() * baseEnemy * 0.5);
                 let homingPower = Math.min(0.08, 0.02 + (diffLevel * 0.005) + Math.random() * 0.015);
                 let extraFallSpeed = Math.min(4.0, (diffLevel * 0.3) + Math.random());
+                
+                // 隨機分配這團學生是男孩還是女孩
+                let isBoy = Math.random() < 0.5;
 
                 gameObjects.push({ 
                     type: 'enemy', 
@@ -182,7 +190,8 @@
                     count: count, 
                     homing: homingPower,     
                     fallSpeed: extraFallSpeed, 
-                    passed: false 
+                    passed: false,
+                    charImg: isBoy ? imgBoy : imgGirl // 指定照片
                 });
             }
         }
@@ -238,6 +247,7 @@
                     ctx.fillText(obj.left.op + obj.left.val, canvas.width/4, obj.y + 35);
                     ctx.fillText(obj.right.op + obj.right.val, canvas.width*0.75, obj.y + 35);
 
+                    // 以光圈判定是否進門
                     if (playerY > obj.y && playerY < obj.y + 50) {
                         obj.passed = true;
                         if (playerX < canvas.width / 2) applyGateMath(obj.left.op, obj.left.val);
@@ -252,10 +262,25 @@
 
                     let enemyRadius = Math.min(60, 15 + Math.sqrt(obj.count) * 2);
                     
-                    ctx.fillStyle = '#f44336'; ctx.beginPath(); ctx.arc(obj.x, obj.y, enemyRadius, 0, Math.PI*2); ctx.fill();
-                    ctx.fillStyle = 'white'; ctx.font = '20px Arial Black'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.fillText(Math.ceil(obj.count), obj.x, obj.y);
+                    // --- 繪製敵人光圈(底座) ---
+                    ctx.fillStyle = 'rgba(244, 67, 54, 0.4)'; // 半透明紅色光圈
+                    ctx.beginPath(); ctx.arc(obj.x, obj.y, enemyRadius, 0, Math.PI*2); ctx.fill();
+                    ctx.strokeStyle = '#f44336'; ctx.lineWidth = 3; ctx.stroke();
 
+                    // --- 繪製學生照片 ---
+                    let imgSize = enemyRadius * 1.6; 
+                    if (obj.charImg.complete) {
+                        ctx.drawImage(obj.charImg, obj.x - imgSize/2, obj.y - imgSize/1.4, imgSize, imgSize);
+                    }
+                    
+                    // --- 繪製敵方人數 (帶黑色陰影防遮擋) ---
+                    ctx.fillStyle = 'white'; 
+                    ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
+                    ctx.font = '18px Arial Black'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(Math.ceil(obj.count), obj.x, obj.y + enemyRadius * 0.6);
+                    ctx.shadowBlur = 0; 
+
+                    // 只有「光圈半徑」相交才算碰撞
                     let dist = Math.hypot(playerX - obj.x, playerY - obj.y);
                     if (dist < playerRadius + enemyRadius) {
                         let drain = Math.ceil(Math.min(engCount, obj.count) * 0.15); 
@@ -280,10 +305,23 @@
                 }
             }
 
-            ctx.fillStyle = '#2196F3'; ctx.beginPath(); ctx.arc(playerX, playerY, playerRadius, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
-            ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(Math.ceil(engCount), playerX, playerY);
+            // --- 繪製玩家光圈(底座) ---
+            ctx.fillStyle = 'rgba(33, 150, 243, 0.4)'; // 半透明藍色光圈
+            ctx.beginPath(); ctx.arc(playerX, playerY, playerRadius, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#2196F3'; ctx.lineWidth = 3; ctx.stroke();
+
+            // --- 繪製工程師照片 ---
+            let pSize = playerRadius * 1.6;
+            if (imgEngineer.complete) {
+                ctx.drawImage(imgEngineer, playerX - pSize/2, playerY - pSize/1.4, pSize, pSize);
+            }
+
+            // --- 繪製工程師人數 ---
+            ctx.fillStyle = 'white'; 
+            ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
+            ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(Math.ceil(engCount), playerX, playerY + playerRadius * 0.6);
+            ctx.shadowBlur = 0;
 
             requestAnimationFrame(gameLoop);
         }
@@ -291,21 +329,23 @@
         function gameCrash() {
             gameActive = false;
             let finalScore = Math.floor(score);
+            // 避免一進去就死掉導致 finalScore 是 0，排隊人數至少為 1
+            finalScore = Math.max(1, finalScore); 
+            
             alert(`防線崩潰！\n你帶領工程師成功處理了 ${finalScore} 份作業，但最後還是被排山倒海的學生淹沒了...`);
             
             document.getElementById('game-overlay').style.display = 'none';
             document.body.style.overflow = 'auto';
             
-            // 改變文字增加嘲諷感
             document.getElementById('crash-text').innerHTML = `<strong style='color:red;'>(iLearn) 系統徹底死機！</strong><br>工程師已被 ${finalScore} 份海量作業壓垮...`;
             
-            // 這次不隱藏按鈕，而是更改按鈕文字，讓玩家可以重玩
             let btn = document.getElementById('startBtn');
             btn.innerText = "再次派出工程師";
-            btn.style.backgroundColor = "#ff5722"; // 換個顏色提示是重玩
+            btn.style.backgroundColor = "#ff5722"; 
             
-            // 排隊人數變成絕望的 999 且重新計時
-            initialQueue = 999; currentQueue = 999;
+            // 【核心修改】：排隊人數直接綁定你剛剛處理掉的作業分數！
+            initialQueue = finalScore; 
+            currentQueue = finalScore;
             startQueue();
         }
     </script>
