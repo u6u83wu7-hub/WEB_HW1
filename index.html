@@ -1,10 +1,102 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>當機等候網頁</title>
-  </head>
-  <body>
-    <h1>十分抱歉，系統整修中</h1>
-    <p></p>
-  </body>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>道歉中...請稍候</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            /* 讓網頁夠長，才能觸發捲軸滑動 */
+            height: 3000px; 
+            font-family: sans-serif;
+            display: flex;
+        }
+
+        /* 左側：固定顯示圖片的區域 */
+        .left-container {
+            width: 40%;
+            height: 100vh;
+            position: fixed; /* 固定在螢幕左側 */
+            top: 0;
+            left: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+
+        .left-container img {
+            max-width: 80%;
+            height: auto;
+        }
+
+        /* 右側：內容區，讓它有留白來產生捲軸 */
+        .right-content {
+            margin-left: 40%; /* 留出左側固定區的空間 */
+            width: 60%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20vh;
+        }
+
+        .info-box {
+            width: 400px;
+            padding: 30px;
+            border: 2px solid #000;
+            background: white;
+            text-align: center;
+            position: sticky; /* 讓框框在滑動時也能稍微停留在視線內 */
+            top: 100px;
+        }
+
+        .footer-info {
+            margin-top: 50px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="left-container">
+        <img id="mainImg" src="01.png" alt="道歉圖">
+    </div>
+
+    <div class="right-content">
+        <div class="info-box">
+            <h1>十分抱歉！</h1>
+            <p>系統目前正在整修中...</p>
+            <p>我們深感遺憾並致上十二萬分的歉意。</p>
+            <hr>
+            <h3>聯繫資訊</h3>
+            <p>客服信箱：support@example.com</p>
+            <p>服務電話：0800-000-000</p>
+        </div>
+
+        <div class="footer-info">
+            <p>（請繼續往下滑，感受我們的誠意）</p>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener("scroll", function() {
+            let scrollY = window.scrollY;
+            let img = document.getElementById("mainImg");
+            
+            // 每滑動 200px 切換一次圖片
+            // 使用陣列定義循環順序：1 -> 2 -> 3 -> 2 (然後重複)
+            const sequence = ["01.png", "02.png", "03.png", "02.png"];
+            
+            // 計算現在該顯示第幾張圖
+            // step 代表目前滑到了第幾個「動作階段」
+            let step = Math.floor(scrollY / 200);
+            
+            // 透過取餘數 (%) 讓索引值永遠在 0~3 之間循環
+            let index = step % sequence.length;
+            
+            img.src = sequence[index];
+        });
+    </script>
+</body>
 </html>
