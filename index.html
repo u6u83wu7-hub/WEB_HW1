@@ -9,7 +9,7 @@
         /* 基本網頁設定，給予高度 4000px 讓使用者可以一直往下滑 */
         body { margin: 0; padding: 0; height: 4000px; font-family: "Microsoft JhengHei", Arial, sans-serif; display: flex; background-color: #fafafa; }
         
-        /* --- 遊戲畫面彈窗 --- */
+        /* 遊戲畫面彈窗
         /* 這是一塊黑色的半透明布幕，預設隱藏(display: none)，點擊按鈕後才會覆蓋整個螢幕 */
         #game-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -153,9 +153,7 @@
         const imgGirl = new Image(); imgGirl.src = 'girl.png';
 
 
-        /* ==========================================
-           第一部分：主頁面的圖片切換與排隊邏輯
-           ========================================== */
+        /*第一部分：主頁面的圖片切換與排隊邏輯 */
            
         // 隨機產生一開始的排隊人數 (30~79人)
         let initialQueue = Math.floor(Math.random() * 50) + 30;
@@ -202,9 +200,7 @@
         startQueue();
 
 
-        /* ==========================================
-           第二部分：跑酷小遊戲核心邏輯
-           ========================================== */
+        /*第二部分：跑酷小遊戲核心邏輯*/
            
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
@@ -284,7 +280,7 @@
             gameObjects.push({ type: 'gate', y: yPos, left: left, right: right, passed: false });
         }
 
-        // 產生「學生大軍 (敵人)」
+        // 產生學生大軍 (敵人)
         function spawnEnemy(yPos) {
             // 隨距離增加難度
             let diffLevel = distanceTraveled / 1000; 
@@ -299,7 +295,7 @@
                 let homingPower = Math.min(0.08, 0.02 + (diffLevel * 0.005) + Math.random() * 0.015); // 追蹤玩家的能力
                 let extraFallSpeed = Math.min(4.0, (diffLevel * 0.3) + Math.random()); // 衝刺速度
                 
-                // 隨機決定這團照片是男生還是女生
+                // 隨機決定這個照片是男生還是女生
                 let isBoy = Math.random() < 0.5;
 
                 gameObjects.push({ 
@@ -323,7 +319,7 @@
             if (engCount < 1) engCount = 1; // 保底留1人，不能因為過錯門直接死
         }
 
-        // --- 遊戲主迴圈 (每秒執行約 60 次) ---
+        // 遊戲主迴圈 (每秒執行約 60 次) 
         function gameLoop() {
             if (!gameActive) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height); // 清空畫布
@@ -341,13 +337,13 @@
                 ctx.beginPath(); ctx.moveTo(0, i + offset); ctx.lineTo(canvas.width, i + offset); ctx.stroke();
             }
 
-            // 讓玩家滑順地移動到滑鼠的位置 (具有慣性效果)
+            // 讓玩家滑順地移動到滑鼠的位置
             playerX += (targetX - playerX) * 0.15;
             // 限制玩家不要跑出邊界
             if (playerX < 20) playerX = 20;
             if (playerX > canvas.width - 20) playerX = canvas.width - 20;
 
-            // 計算玩家的光圈大小 (人數越多光圈越大)
+            // 計算玩家的圈圈大小 (人數越多圈圈越大)
             let playerRadius = Math.min(60, 15 + Math.sqrt(engCount) * 2);
 
             // 動態產生前面的障礙或加成
@@ -367,7 +363,7 @@
 
                 if (obj.passed) continue; // 已經處理過的就不管
 
-                // 如果是「傳送門」
+                // 傳送門
                 if (obj.type === 'gate') {
                     // 畫出左右兩個半透明有色方塊
                     ctx.fillStyle = 'rgba(103, 58, 183, 0.4)'; ctx.fillRect(0, obj.y, canvas.width/2, 50); // 左門紫色
@@ -386,23 +382,23 @@
                         else applyGateMath(obj.right.op, obj.right.val);
                     }
                 } 
-                // 如果是「敵人 (學生大軍)」
+                // 敵人 (學生)
                 else if (obj.type === 'enemy') {
-                    // 讓敵人加速並朝玩家吸過去
+                    // 讓敵人加速並朝玩家方向過去
                     if (obj.y > 0) {
                         obj.y += 2.0 + obj.fallSpeed; 
                         obj.x += (playerX - obj.x) * obj.homing; 
                     }
 
-                    // 敵人光圈大小
+                    // 敵人圈圈大小
                     let enemyRadius = Math.min(60, 15 + Math.sqrt(obj.count) * 2);
                     
-                    // 畫敵人的紅色半透明光圈底座
+                    // 敵人的紅色圈圈
                     ctx.fillStyle = 'rgba(244, 67, 54, 0.4)'; 
                     ctx.beginPath(); ctx.arc(obj.x, obj.y, enemyRadius, 0, Math.PI*2); ctx.fill();
                     ctx.strokeStyle = '#f44336'; ctx.lineWidth = 3; ctx.stroke();
 
-                    // 繪製學生的圖片，並將其裁切成圓形放入光圈中
+                    // 學生的圖片放進圈圈裏面
                     if (obj.charImg.complete) {
                         ctx.save(); 
                         ctx.beginPath(); 
@@ -448,7 +444,7 @@
                 }
             }
 
-            // --- 繪製玩家自己 ---
+            // 繪製玩家角色
             // 玩家藍色半透明光圈底座
             ctx.fillStyle = 'rgba(33, 150, 243, 0.4)';
             ctx.beginPath(); ctx.arc(playerX, playerY, playerRadius, 0, Math.PI*2); ctx.fill();
@@ -496,7 +492,7 @@
             btn.innerText = "再次派出工程師";
             btn.style.backgroundColor = "#ff5722"; 
             
-            // 將排隊人數設定為你的得分，讓它產生永遠排不完的絕望感
+            // 將排隊人數設定為得分，讓它產生永遠排不完的絕望感
             initialQueue = finalScore; 
             currentQueue = finalScore;
             startQueue();
